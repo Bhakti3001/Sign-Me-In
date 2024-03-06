@@ -1,0 +1,55 @@
+.table-header {
+    background-color: #0078C9;
+    color: white;
+    font-weight: bolder;
+    outline: white 2px;
+}
+
+.input-group .form-control {
+    height: 3.3125rem;
+    flex: 1;
+    border: 0px;
+}
+
+.input-group {
+    border-radius: 4px;
+}
+
+.input-group-btn {
+    display: flex;
+    justify-content: center;
+}
+
+.search-icon {
+    display: flex;
+    justify-content: center;
+    height: 24px;
+    width: 24px;
+}
+
+.input-group {
+    display: flex;
+    align-items: center;
+    border: 2px solid #6e6e6e;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    position: relative;
+    border-radius: 0px;
+}
+
+.form-control {
+    height: 3.3125rem;
+}
+
+.input-group .form-control {
+    height: 3.3125rem;
+    flex: 1;
+    border: none;
+}
+
+.card {
+    border: none;
+    padding-left: 20px;
+    padding-right: 20px;
+}

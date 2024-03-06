@@ -1,0 +1,53 @@
+
+.input-group {
+    display: flex;
+    align-items: center;
+    border: 2px solid #6e6e6e;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    position: relative;
+    border-radius: 0px;
+}
+
+.input-group {
+    border-radius: 0px;
+}
+
+.input-group-btn {
+    display: flex;
+    border: none;
+    justify-content: center;
+    z-index: 1;
+}
+
+.search-icon {
+    display: flex;
+    justify-content: center;
+    height: 24px;
+    width: 24px;
+}
+
+.form-control {
+    height: 3.3125rem;
+    border: none;
+}
+
+.card {
+    border: none;
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+.btn-block {
+    height: 3.3125rem;
+}
+
+.image {
+    max-height: 100px;
+    align-items: center;
+}
+
+.alert{
+    margin-bottom: 0;
+}

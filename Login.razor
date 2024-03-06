@@ -1,0 +1,95 @@
+@page "/"
+@layout LoginLayout
+@inject Context dbContext
+@inject NavigationManager navigation
+@inject IJSRuntime JSRuntime
+@inject AuthenticationService authService
+
+@code {
+    private string username = "";
+    private string password = "";
+
+    // Executed when the page is initialized
+    protected override void OnInitialized()
+    {
+        authService.Logout();
+    }
+
+    // Handles the login process
+    private async Task HandleLogin()
+    {
+        // Retrieve user information from the database based on the entered username
+        var user = dbContext.Accounts.FirstOrDefault(u => u.UserName == username);
+
+        if (user != null)
+        {
+            // Verify the entered password against the stored password hash
+            bool isPasswordCorrect = BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
+
+            if (isPasswordCorrect)
+            {
+                authService.Login(user.UserName);
+
+                // Redirect to appropriate pages based on the user's account type
+                if (user.AccountID == 2)
+                {
+                    navigation.NavigateTo("/Sign-In");
+                }
+                else if (user.AccountID == 1)
+                {
+                    navigation.NavigateTo("/Reports");
+                }
+            }
+            else
+            {
+                // Reset username and password, and display an alert for incorrect credentials
+                username = "";
+                password = "";
+                await JSRuntime.InvokeVoidAsync("alert", "Invalid username or password.");
+            }
+        }
+        else
+        {
+            // Reset username and password, and display an alert for incorrect credentials
+            username = "";
+            password = "";
+            await JSRuntime.InvokeVoidAsync("alert", "Invalid username or password.");
+        }
+    }
+}
+
+<!-- Login Page HTML -->
+
+<PageTitle>Login</PageTitle>
+<div class="background">
+    <div class="col-xxl-3 small">
+        <div class="login-box text-center md">
+            <div class="row">
+                <div class="logo col-md-12 text-start">
+                    <img src="FDTC-LOGO2.png" alt="Logo" class="login-logo mb-4 align-content-end" />
+                </div>
+            </div>
+            <form @onsubmit="HandleLogin">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group pb-2 w-100">
+                            <input type="text" @bind="username" class="form-control shadow-none"
+                                placeholder="Username" />
+                        </div>
+                        <div class="form-group w-100 pb-3">
+                            <input type="password" @bind="password" class="form-control shadow-none"
+                                placeholder="Password" />
+                        </div>
+                    </div>
+                </div>
+                <div class="row text-end">
+                    <div class="col-md-12 text-end">
+                        <div class="m-custom">
+                            <button type="submit" class="btn btn-primary">Login</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

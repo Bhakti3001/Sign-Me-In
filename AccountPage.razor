@@ -1,0 +1,64 @@
+@page "/Account"
+@inject Context dbContext
+@using Microsoft.EntityFrameworkCore;
+@inject NavigationManager navigationManager
+@inject AuthenticationService authService
+
+@code {
+    // Flag to track whether an account is selected
+    private bool selectAccount = false;
+
+    // List to store accounts retrieved from the database
+    private List<Account>? Accounts;
+
+    // Currently selected account
+    private Account? selectedAccount;
+
+    // Type of input field for account password
+    public string TxtType { get; set; } = "password";
+
+    protected override void OnInitialized()
+    {
+        var accountIdToCheck = 1;
+
+        // Check if the user is logged in
+        var isLoggedIn = authService.IsUserLoggedIn(accountIdToCheck);
+
+        if (!isLoggedIn)
+        {
+            navigationManager.NavigateTo("/Forbidden");
+        }
+
+        // Load accounts from the database
+        LoadAccounts();
+    }
+
+    // Method to load accounts from the database
+    private void LoadAccounts()
+    {
+        Accounts = dbContext.Accounts.ToList();
+    }
+
+    // Method to select an account
+    private void SelectAccount(Account account)
+    {
+        selectedAccount = dbContext.Accounts.FirstOrDefault(s => s.AccountID == account.AccountID);
+        selectAccount = true;
+    }
+}
+<div class="container-md d-flex justify-content-center align-items-center">
+    <div class="card shadow-lg col-md-7">
+        @if (!selectAccount && Accounts?.Any() == true)
+        {
+            @foreach (var account in Accounts)
+            {
+                <AccountCard Account="account" OnSelectAccount="() => SelectAccount(account)" />
+            }
+        }
+        else
+        {
+            <p>No Accounts Found</p>
+        }
+        <div class="mb-3"></div>
+    </div>
+</div>

@@ -1,0 +1,17 @@
+/* Styling for search bar and fields */
+.input-group .form-control {
+    height: 3.3125rem;
+    flex: 1;
+    border: 0px;
+}
+
+/* Styling for buttons */
+.btn {
+    height: 3.3125rem; 
+}
+
+/* Card styling */
+.card {
+    border: none; 
+   
+}

@@ -1,0 +1,72 @@
+@page "/Employee/DeleteEmployee/"
+@inject Context dbContext
+@inject IJSRuntime JSRuntime
+@inject NavigationManager navigationManager
+
+<div class="container-md d-flex justify-content-center align-items-center">
+    <div class="col-md-7">
+
+    <div class="card shadow-lg">
+        @if (Employees != null && Employees.Any())
+        {
+            @foreach (var employee in Employees)
+            {
+                <DeleteEmployeeCard Employee="@employee" OnDeleteEmployee="HandleDeleteEmployee" />
+            }
+        }
+        else
+        {
+            <p>No employees found.</p>
+        }
+        <div class="container-md mt-3">
+            <button class="btn btn-primary btn-block mb-3 ml-3" @onclick="goBack" style="margin-left: 5px;">Go Back</button>
+        </div>
+    </div>
+    </div>
+</div>
+
+@code {
+    private List<HubEmployee>? Employees;
+    private bool isDeleting = false;
+    protected override void OnInitialized()
+    {
+        ListEmployees();
+    }
+
+    private void ListEmployees()
+    {
+        Employees = dbContext.HubEmployees.ToList();
+    }
+
+    private void goBack(){
+        navigationManager.NavigateTo("/Employee");
+    }
+    private async Task HandleDeleteEmployee(HubEmployee employee)
+    {
+        if (employee != null)
+        {
+            var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete {employee.FirstName} {employee.LastName}?");
+            
+            if (confirmed)
+            {
+                isDeleting = true;
+                StateHasChanged(); // Trigger a re-render to show the loading spinner
+
+                dbContext.HubEmployees.Remove(employee);
+
+                try
+                {
+                    await dbContext.SaveChangesAsync();
+                    ListEmployees(); // Refresh the list after deletion
+                }
+                catch (Exception ex)
+                {
+                    
+                }
+
+                isDeleting = false;
+                StateHasChanged(); // Remove the loading spinner
+            }
+        }
+    }
+}

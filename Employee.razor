@@ -1,0 +1,253 @@
+@page "/Employee"
+@inject Context dbContext
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@inject AuthenticationService authService
+@inject NavigationManager navigationManager
+
+@code {
+    private string searchTerm = ""; // The term used to search for employees
+    private List<HubEmployee>? foundEmployees; // List of employees that match the search term
+    private HubEmployee? foundEmployee; // The selected employee
+    private bool isLoading = false; // Indicates if the search is currently running
+    private bool searchPerformed = false; // Indicates if a search has been made
+    private bool updated = false;
+
+    protected override void OnInitialized()
+    {
+        var accountIdToCheck = 1;
+        var isLoggedIn = authService.IsUserLoggedIn(accountIdToCheck);
+
+        if (!isLoggedIn)
+        {
+            navigationManager.NavigateTo("/Forbidden");
+        }
+    }
+
+    private async Task Search()
+    {
+        if (!string.IsNullOrWhiteSpace(searchTerm)) // Check if searchTerm is not null or empty
+        {
+            isLoading = true;
+            foundEmployees = null; // Clear previous search results
+            foundEmployee = null; // Clear the previously found Employee
+
+            // Split the search term by spaces
+            var searchTerms = searchTerm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            // Query the database to retrieve employees that match the search term
+            foundEmployees = await dbContext.HubEmployees
+            .Where(e => e.FirstName == searchTerm || e.LastName == searchTerm)
+            .ToListAsync();
+
+            isLoading = false;
+            searchPerformed = true;
+
+            if (foundEmployees.Count == 1)
+            {
+                // If only one employee is found, assign it to foundEmployee
+                foundEmployee = foundEmployees.First();
+            }
+        }
+    }
+
+    private void SelectEmployee(HubEmployee employee)
+    {
+        foundEmployee = employee;
+        foundEmployees = null; // Clear the list of found employees
+    }
+
+
+    private async Task HandleUpdate(HubEmployee employee)
+    {
+        updated = false;
+        if (employee != null)
+        {
+            dbContext.Update(employee);
+            await dbContext.SaveChangesAsync();
+            updated = true;
+        }
+
+        StateHasChanged();
+
+        await Task.Delay(3000); // 3 second timer
+        ResetSignIn();
+    }
+    private void ResetSignIn()
+    {
+        searchPerformed = false;
+        foundEmployees = null;
+        searchTerm = "";
+        updated = false;
+    }
+
+    private void goToAddEmployee()
+    {
+        navigationManager.NavigateTo("/Employee/AddEmployee");
+    }
+
+    private void goToDeleteEmployee()
+    {
+        navigationManager.NavigateTo("/Employee/DeleteEmployee");
+    }
+    private void goBack(){
+        ResetSignIn();
+    }
+}
+
+
+<div class="container-lg d-flex justify-content-center">
+    <div class="col-md-7 card shadow-lg mb-4">
+        <form @onsubmit="Search">
+            <div class="py-4">
+                <div class="form-group">
+                    <div class="input-group mx-auto">
+                        <input type="search" class="form-control shadow-none md-form"
+                            placeholder="Search for an Employee" @bind="searchTerm" autofocus />
+                        <span class="input-group-btn">
+                            <button type="submit" class="btn btn-default shadow-none my-auto">
+                                <img src="search-icon.png" class="search-icon">
+                            </button>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </form>
+        
+        @if (!searchPerformed)
+        {
+            <div class="row">
+                <div class="col-md-6 text-start">
+                    <button class="btn btn-primary btn-block w-100 mb-3" @onclick="goToAddEmployee">Create Employee
+                    </button>
+                </div>
+                <div class="col-md-6 ">
+                    <button class="btn btn-primary btn-block w-100 mb-3" @onclick="goToDeleteEmployee">Delete
+                        Employee</button>
+                </div>
+            </div>
+
+        }
+
+        @if (updated)
+        {
+            <div class="alert alert-primary text-center mb-3">
+                <label>Employee data updated</label>
+            </div>
+        }
+        @if (isLoading)
+        {
+            <div class="form-group text-center pt-5">
+                <img src="loading.gif">
+            </div>
+        }
+
+        else if (searchPerformed && !updated)
+        {
+            @if (foundEmployees?.Count > 1 && foundEmployee == null)
+            {
+                <div class="alert alert-info mb-4">
+                    @foundEmployees.Count @(" Employees found with the same name. Select one to continue.")
+                </div>
+
+                @foreach (var employee in foundEmployees)
+                {
+                    if (employee != null) // Add the condition here
+                    {
+                        <SelectEmployeeCard Employee="@employee" OnSelectEmployee="SelectEmployee" />
+                    }
+                }
+            }
+
+
+            else if ((foundEmployees?.Count == 1 || foundEmployee != null) )
+            {
+                <div class="row ">
+                    <div class="col-md-6 mx-auto">
+                        <div class="form-group">
+                            <label>First Name:</label>
+                            @if (foundEmployee != null)
+                            {
+                                <div class="input-group">
+                                    <input type="text" class="form-control shadow-none" @bind="foundEmployee.FirstName" />
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    <div class="col-md-6 mx-auto">
+                        <div class="form-group">
+                            <label>Last Name:</label>
+                            @if (foundEmployee != null)
+                            {
+                                <div class="input-group">
+                                    <input type="text" class="form-control shadow-none" @bind="foundEmployee.LastName" />
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="row py-3">
+                    <div class="col-md-6 mx-auto">
+                        <div class="form-group">
+                            <label>Employee ID:</label>
+                            @if (foundEmployee != null)
+                            {
+                                <div class="input-group">
+                                    <input type="text" class="form-control shadow-none" @bind="foundEmployee.EmployeeID" />
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    <div class="col-md-6 mx-auto">
+                        <div class="form-group">
+                            <label>Employee Initials:</label>
+                            @if (foundEmployee != null)
+                            {
+                                <div class="input-group">
+                                    <input type="text" class="form-control shadow-none" @bind="foundEmployee.Initials" />
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row py-4">
+                    <div class="col-md-6 mx-auto">
+                        <button class="btn btn-primary btn-block w-100" @onclick="goBack">Go Back</button>
+                    </div>
+                    <div class="col-md-6 mx-auto text-end">
+                        <button class="btn btn-primary btn-block w-100" @onclick="() => HandleUpdate(foundEmployee)">Update</button>
+                    </div>
+                </div>
+
+            }
+            else if (searchPerformed == true && !string.IsNullOrWhiteSpace(searchTerm) || searchTerm == null)
+            {
+                <div class="form-group text-center mb-2">
+                    @if (foundEmployees?.Count > 1)
+                    {
+                        <div class="alert alert-info mb-4">
+                            @foundEmployees.Count @(" Employees found with the name '")@searchTerm@("'. Select one to continue.")
+                        </div>
+
+                        @foreach (var employee in foundEmployees)
+                        {
+                            if (employee != null)
+                            {
+                                <SelectEmployeeCard Employee="@employee" OnSelectEmployee="SelectEmployee" />
+                            }
+                        }
+                    }
+                    else if (foundEmployee == null)
+                    {
+                        <div class="alert alert-warning">
+                            <label>
+                                No Employees found with the name '@searchTerm'
+                            </label>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </div>
+</div>

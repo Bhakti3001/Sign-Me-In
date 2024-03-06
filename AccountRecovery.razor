@@ -1,0 +1,236 @@
+@page "/Account/Recovery/{AccountID}"
+@inject Context dbContext
+@inject NavigationManager navigationManager
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.Forms
+@inject AuthenticationService authService
+
+@code
+{
+    private List<SecurityQuestion>? SecurityQuestions; // List of security questions
+    [Parameter]
+    public String AccountID { get; set; }
+    private List<String> userAnswers; // List of user answers
+    private bool showInvalidAlert = false;
+
+    protected override void OnInitialized()
+    {
+        var accountIdToCheck = 1;
+        var isLoggedIn = authService.IsUserLoggedIn(accountIdToCheck);
+
+        if (!isLoggedIn)
+        {
+            navigationManager.NavigateTo("/Forbidden"); // Redirect to Forbidden page if not logged in
+        }
+        getSecurityQuestions();
+        <!-- Fetch security questions and initialize userAnswers -->
+
+        // Initialize userAnswers if it's null
+        if (userAnswers == null)
+        {
+            userAnswers = new List<string>(SecurityQuestions.Count);
+            for (var i = 0; i < SecurityQuestions.Count; i++)
+            {
+                userAnswers.Add(string.Empty);
+            }
+        }
+    }
+
+    // Method to fetch security questions from the database
+    private void getSecurityQuestions()
+    {
+        // Parse the string to an integer
+        if (int.TryParse(AccountID, out int accountId))
+        {
+            // Fetch security questions from the database for the specified AccountID
+            SecurityQuestions = dbContext.SecurityQuestions
+            .Where(q => q.AccountID == accountId)
+            .ToList();
+
+            if (SecurityQuestions.Count > 0)
+            {
+                // Initialize userAnswers with the same number of elements as SecurityQuestions
+                userAnswers = new List<string>(SecurityQuestions.Count);
+                for (var i = 0; i < SecurityQuestions.Count; i++)
+                {
+                    userAnswers.Add(string.Empty); // You can initialize with default values if needed
+                }
+            }
+            else
+            {
+                Console.WriteLine("No security questions found.");
+            }
+        }
+        else
+        {
+            navigationManager.NavigateTo("/Account");
+        }
+    }
+
+    // Method to navigate back to the Accounts page
+    private void GoBackToAccounts()
+    {
+        navigationManager.NavigateTo("/Account");
+    }
+
+    // Method to update user's answer to a security question
+    private void UpdateUserAnswer(string value, int index)
+    {
+        try
+        {
+            if (index >= 0 && index < userAnswers.Count)
+            {
+                userAnswers[index] = value;
+            }
+            else
+            {
+                Console.WriteLine($"Index out of range: {index}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Exception in UpdateUserAnswer: {ex.Message}");
+        }
+    }
+
+    // Method to validate security questions
+    private bool ValidateSecurityQuestions()
+    {
+        if (SecurityQuestions == null || userAnswers == null || SecurityQuestions.Count != userAnswers.Count)
+        {
+            Console.WriteLine("Validation failed: Null or mismatched counts.");
+            return false;
+        }
+
+        for (var i = 0; i < SecurityQuestions.Count; i++)
+        {
+            var question = SecurityQuestions[i];
+            var userAnswer = userAnswers[i];
+
+            if (string.IsNullOrEmpty(question.AnswerHash))
+            {
+                Console.WriteLine($"Validation failed for Question {i + 1}: AnswerHash is null or empty.");
+                return false;
+            }
+
+            var storedAnswer = GetStoredAnswerFromDatabase(question.QuestionID);
+
+            if (storedAnswer != null && userAnswer == storedAnswer)
+            {
+                continue;
+            }
+            else
+            {
+                Console.WriteLine($"Validation failed for Question {i + 1}: Answer mismatch.");
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // Method to fetch the stored answer to a security question from the database
+    private string GetStoredAnswerFromDatabase(int questionID)
+    {
+        var storedAnswer = dbContext.SecurityQuestions
+        .Where(q => q.QuestionID == questionID)
+        .Select(q => q.AnswerHash)
+        .FirstOrDefault();
+
+        return storedAnswer;
+    }
+
+    // Method to navigate to the Change Password page
+    private void GoToChangePassword()
+    {
+        try
+        {
+            if (ValidateSecurityQuestions())
+            {
+                StateHasChanged(); // Ensure the component state is updated
+                navigationManager.NavigateTo($"/Account/Recovery/{AccountID}/ResetPassword");
+            }
+            else
+            {
+                showInvalidAlert = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error during navigation: {ex.Message}");
+        }
+    }
+    // Method to get the username for the account
+    private string GetAccountUsername()
+    {
+        var account = dbContext.Accounts.FirstOrDefault(a => a.AccountID == int.Parse(AccountID));
+        return account?.UserName ?? "Username Not Found";
+    }
+}
+
+<!-- HTML content for the Account Recovery page -->
+<div class="container-lg mb-4 py-3 d-flex justify-content-center">
+    <div class="col-md-7 card shadow-lg">
+        <div class="row">
+            <div class="col-md-12 text-center mt-3">
+                <h1>@GetAccountUsername()</h1>
+            </div>
+        </div>
+        <hr />
+        <div class="row justify-content-center">
+            <div class="col-md-12 ">
+                @if (SecurityQuestions != null && SecurityQuestions.Any())
+                {
+                    @for (var i = 0; i < SecurityQuestions.Count; i++)
+                    {
+                        var questionIndex = i; // Capture the loop variable
+
+                        <div class="mb-3 ">
+                            <div>
+                                <h4><b>@($"Question {i + 1}")</b></h4>
+                            </div>
+                            <div>
+                                <h5>@SecurityQuestions[i].Question</h5>
+                                <div class="form-group">
+
+                                    <div class="input-group">
+                                        @if (userAnswers != null && questionIndex < userAnswers.Count)
+                                        {
+                                            <input type="text" placeholder="Input Answer" class="form-control shadow-none md-form"
+                                                @bind="userAnswers[questionIndex]" />
+                                        }
+                                        else
+                                        {
+                                            <p>Invalid user answer index.</p>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                }
+                else
+                {
+                    <p>No security questions available.</p>
+                }
+            </div>
+        </div>
+        @if (showInvalidAlert)
+        {
+            <div class="row px-3 mt-3">
+                <div class="alert alert-danger mt-3" role="alert">
+                    Security question answers are incorrect. Please check your answers.
+                </div>
+            </div>
+        }
+        <div class="row mb-3">
+            <div class="col-md-6 mt-4">
+                <button class="btn btn-primary btn-block" @onclick="GoBackToAccounts">Go Back</button>
+            </div>
+            <div class="col-md-6 mt-4">
+                <button class="btn btn-primary btn-block" @onclick="GoToChangePassword">Reset Password</button>
+            </div>
+        </div>
+    </div>
+</div>

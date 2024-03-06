@@ -1,0 +1,227 @@
+@page "/Reports"
+@inject Context dbContext
+@inject NavigationManager navigationManager
+@inject AuthenticationService authService
+
+@code {
+    // Declare properties for storing data
+    private double SecondsTesting { get; set; }
+    private int StudentsTesting { get; set; }
+    private int DistinctStudentsTesting { get; set; }
+    private double SecondsTutoring { get; set; }
+    private int StudentsTutoring { get; set; }
+    private int DistinctStudentsTutoring { get; set; }
+    private double TotalTime { get; set; }
+    private DateTime? startDate { get; set; } = DateTime.Now.Date;
+    private DateTime? endDate { get; set; } = DateTime.Now.Date;
+
+    // Initialize the component
+    protected override void OnInitialized()
+    {
+        var accountIdToCheck = 1; 
+        var isLoggedIn = authService.IsUserLoggedIn(accountIdToCheck);
+
+        // Redirect to Forbidden page if not logged in
+        if (!isLoggedIn)
+        {
+            navigationManager.NavigateTo("/Forbidden");
+        }
+        
+        // Fetch data on component initialization
+        FetchData();
+    }
+
+    // Method to fetch data based on selected date range
+    private void FetchData()
+    {
+        List<HubSession>? testing = null;
+        List<HubSession>? tutoring = null;
+
+        // Check if both start and end dates are selected
+        if (startDate.HasValue && endDate.HasValue)
+        {
+            // Filter data between start and end dates
+            testing = dbContext.HubSessions
+                .Where(s => s.Date >= startDate && s.Date < endDate.Value.AddDays(1) && s.SessionType == "Testing" && s.TimeOut != null)
+                .ToList();
+
+            tutoring = dbContext.HubSessions
+                .Where(s => s.Date >= startDate && s.Date < endDate.Value.AddDays(1) && s.SessionType == "Tutoring" && s.TimeOut != null)
+                .ToList();
+        }
+        else if (startDate.HasValue)
+        {
+            // Start date is selected, but end date is not
+            // Filter data from start date to the current date
+            var currentDate = DateTime.Now.Date;
+
+            testing = dbContext.HubSessions
+                .Where(s => s.Date >= startDate && s.Date < currentDate.AddDays(1) && s.SessionType == "Testing" && s.TimeOut != null)
+                .ToList();
+
+            tutoring = dbContext.HubSessions
+                .Where(s => s.Date >= startDate && s.Date < currentDate.AddDays(1) && s.SessionType == "Tutoring" && s.TimeOut != null)
+                .ToList();
+        }
+        else if (endDate.HasValue)
+        {
+            // End date is selected, but start date is not
+            // Filter data from the beginning till the end date
+            testing = dbContext.HubSessions
+                .Where(s => s.Date < endDate.Value.AddDays(1) && s.SessionType == "Testing" && s.TimeOut != null)
+                .ToList();
+
+            tutoring = dbContext.HubSessions
+                .Where(s => s.Date < endDate.Value.AddDays(1) && s.SessionType == "Tutoring" && s.TimeOut != null)
+                .ToList();
+        }
+        else
+        {
+            // Both start and end dates are empty, so don't show any data
+            SecondsTesting = 0;
+            SecondsTutoring = 0;
+            TotalTime = 0;
+            StudentsTesting = 0;
+            StudentsTutoring = 0;
+            DistinctStudentsTesting = 0;
+            DistinctStudentsTutoring = 0;
+            StateHasChanged();
+            return;
+        }
+
+        // Calculate total Seconds for testing and tutoring
+        double totalSecondsTesting = testing.Sum(s => (s.TimeOut - s.TimeIn)?.TotalSeconds ?? 0);
+        double totalSecondsTutoring = tutoring.Sum(s => (s.TimeOut - s.TimeIn)?.TotalSeconds ?? 0);
+        double totalSeconds = totalSecondsTesting + totalSecondsTutoring;
+
+        // Assign data to properties
+        StudentsTesting = testing.Count;
+        StudentsTutoring = tutoring.Count;
+        DistinctStudentsTesting = testing.Select(s => s.StudentID).Distinct().Count();
+        DistinctStudentsTutoring = tutoring.Select(s => s.StudentID).Distinct().Count();
+        SecondsTesting = totalSecondsTesting;
+        SecondsTutoring = totalSecondsTutoring;
+        TotalTime = totalSeconds;
+
+        StateHasChanged();
+    }
+
+    // Method to handle changes in the start date
+    private void StartDateChanged(ChangeEventArgs e)
+    {
+        if (e.Value != null)
+        {
+            string dateString = e.Value.ToString()!;
+            if (!string.IsNullOrEmpty(dateString))
+            {
+                startDate = DateTime.Parse(dateString);
+                FetchData();
+            }
+        }
+    }
+
+    // Method to handle changes in the end date
+    private void EndDateChanged(ChangeEventArgs e)
+    {
+        if (e.Value != null)
+        {
+            string dateString = e.Value.ToString()!;
+            if (!string.IsNullOrEmpty(dateString))
+            {
+                endDate = DateTime.Parse(dateString);
+                FetchData();
+            }
+        }
+    }
+
+    // Method to navigate to detailed report page
+    private void ShowDetailedReport()
+    {
+        // Pass the selected dates as route parameters
+        navigationManager.NavigateTo($"/Reports/Detailed/{startDate:yyyy-MM-dd}/{endDate.Value.AddDays(1):yyyy-MM-dd}");
+    }
+
+    // Method to format total time in a human-readable format
+    string FormatTotalTime(double totalTimeInSeconds)
+    {
+        int hours = (int)(totalTimeInSeconds / 3600);
+        int minutes = (int)((totalTimeInSeconds % 3600) / 60);
+        int seconds = (int)(totalTimeInSeconds % 60);
+
+        // Round up the minutes
+        if (seconds > 30)
+        {
+            minutes++;
+        }
+
+        string formattedTime = "";
+
+        if (hours > 0)
+        {
+            formattedTime += $"{hours} hr ";
+        }
+
+        if (minutes > 0)
+        {
+            formattedTime += $"{minutes} min ";
+        }
+
+        if (seconds >= 0 && hours == 0 && minutes == 0)
+        {
+            formattedTime += $"{seconds} sec";
+        }
+
+        return formattedTime.Trim();
+    }
+}
+
+<!-- Render the UI -->
+<div class="container card pt-3 shadow-lg">
+    <div class="row">
+        <div class="col-lg-2 d-flex justify-content-center flex-column align-content-center">
+            <label for="startDate">From</label>
+            <input type="date" id="startDate" name="startDate" @bind="startDate" @oninput="StartDateChanged" class="form-control">
+        </div>
+        <div class="col-lg-2 d-flex justify-content-center flex-column align-content-center">
+            <label for="endDate">To</label>
+            <input type="date" id="endDate" name="endDate" @bind="endDate" @oninput="EndDateChanged" class="form-control">
+        </div>
+    </div>
+    <div>
+        <table class="table mt-3">
+            <thead>
+                <tr class="table-header">
+                    <th>Questions</th>
+                    <th>Testing</th>
+                    <th>Tutoring</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>How many hours was the math hub used?</td>
+                    <td>@FormatTotalTime(SecondsTesting)</td>
+                    <td>@FormatTotalTime(SecondsTutoring)</td>
+                    <td>@FormatTotalTime(TotalTime)</td>
+                </tr>
+                <tr>
+                    <td>How many students used the math hub?</td>
+                    <td>@StudentsTesting</td>
+                    <td>@StudentsTutoring</td>
+                    <td>@(StudentsTesting + StudentsTutoring)</td>
+                </tr>
+                <tr>
+                    <td>How many distinct students used the math hub?</td>
+                    <td>@DistinctStudentsTesting</td>
+                    <td>@DistinctStudentsTutoring</td>
+                    <td>@(DistinctStudentsTesting + DistinctStudentsTutoring)</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="row">
+        <div class="col-md-12">
+            <button class="btn btn-primary my-3" @onclick="ShowDetailedReport"> View more detailed report </button>
+        </div>
+    </div>
+</div>

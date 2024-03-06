@@ -1,0 +1,54 @@
+﻿@inject IHostEnvironment Env
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
+    <link href="css/site.css" rel="stylesheet" />
+    <link href="Sign-Me-In.styles.css" rel="stylesheet" />
+    <link rel="icon" type="image/png" href="fdtc.png" />
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+
+<body>
+    <Routes @rendermode="InteractiveServer" />
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <script src="_framework/blazor.web.js"></script>
+    <script>
+        // This script downloads a file (called in DetailedReport.razor)
+        window.downloadFile = (fileName, uri) => {
+            const link = document.createElement('a');
+            link.href = uri;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        window.showAlert = function (message) {
+            alert(message);
+        };
+
+        function validateDateFormat(inputId, errorMessage) {
+            var input = document.getElementById(inputId);
+
+            if (input && !input.checkValidity()) {
+                window.showAlert(errorMessage);
+                return false;
+            }
+
+            return true;
+        }
+    </script>
+</body>
+
+</html>
